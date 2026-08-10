@@ -1,0 +1,28 @@
+<script>
+(function(){
+  let initialized=false;
+  function init(){
+    const date=document.querySelector('#expenseDate');date.value=DMBUtils.today();
+    const period=new Intl.DateTimeFormat('pt-BR',{month:'long',year:'numeric'}).format(new Date());document.querySelector('#currentPeriod').textContent=period.charAt(0).toUpperCase()+period.slice(1);
+    if(initialized)return;initialized=true;
+    document.querySelector('#expenseReceipt').addEventListener('change',onReceipt);
+    document.querySelector('#expenseForm').addEventListener('submit',save);
+    document.querySelector('#clearExpense').addEventListener('click',function(){setTimeout(resetReceipt,0);});
+    loadClients();
+  }
+  function onReceipt(event){const file=event.target.files[0];document.querySelector('#receiptDrop').classList.toggle('has-file',!!file);document.querySelector('#receiptName').textContent=file?file.name:'Adicionar foto da nota fiscal';document.querySelector('#receiptHint').textContent=file?'Foto selecionada — será comprimida ao salvar':'JPG, PNG ou WebP • compressão automática • até 10 MB';}
+  function resetReceipt(){document.querySelector('#receiptDrop').classList.remove('has-file');document.querySelector('#receiptName').textContent='Adicionar foto da nota fiscal';document.querySelector('#receiptHint').textContent='JPG, PNG ou WebP • compressão automática • até 10 MB';document.querySelector('#expenseDate').value=DMBUtils.today();document.querySelector('#expenseSeller').value=DMBApp.state.user.name;}
+  async function loadClients(){try{const clients=await DMBApi.call('apiListarClientes',DMBApp.state.token,'');document.querySelector('#clientOptions').innerHTML=clients.map(function(client){return '<option value="'+DMBUtils.escapeHtml(client.tradeName||client.name)+'"></option>';}).join('');}catch(error){console.warn(error);}}
+  async function save(event){
+    event.preventDefault();DMBApp.busy(true);
+    try{
+      const input=document.querySelector('#expenseReceipt');if(!input.files[0])throw new Error('Adicione a foto da nota fiscal.');
+      const receipt=await DMBUtils.compressImage(input.files[0],1600,.72);
+      const payload={date:document.querySelector('#expenseDate').value,route:document.querySelector('#expenseRoute').value,clientName:document.querySelector('#expenseClient').value,category:document.querySelector('#expenseCategory').value,amount:DMBUtils.parseMoney(document.querySelector('#expenseAmount').value),paymentMethod:document.querySelector('#expensePayment').value,mileage:document.querySelector('#expenseMileage').value,description:document.querySelector('#expenseDescription').value,receipt:receipt,deviceInfo:DMBUtils.deviceInfo()};
+      await DMBApi.call('apiSalvarDespesa',DMBApp.state.token,payload);document.querySelector('#expenseForm').reset();resetReceipt();DMBApp.toast('Despesa salva com sucesso. O link da foto foi gravado na planilha.','success');
+    }catch(error){DMBApp.toast(error.message,'error');}finally{DMBApp.busy(false);}
+  }
+  window.DMBExpenses={init:init};
+})();
+
+</script>

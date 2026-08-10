@@ -1,0 +1,31 @@
+<section id="page-administracao" class="page-section">
+  <header class="page-heading">
+    <div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Usuários e acessos</h1><p>Cadastre, edite, bloqueie e defina quem possui acesso de administrador.</p></div>
+  </header>
+
+  <div class="user-admin-layout">
+    <form id="userForm" class="card form-card user-form">
+      <input id="userId" type="hidden">
+      <div class="section-title"><b>U</b><div><h2 id="userFormTitle">Novo usuário</h2><p>Senha inicial com no mínimo 6 caracteres.</p></div></div>
+      <div class="form-grid">
+        <label>Nome completo<input id="userFullName" type="text" maxlength="120" required></label>
+        <label>Login ou e-mail<input id="userLogin" type="text" maxlength="160" autocomplete="off" required></label>
+        <label>Senha inicial<input id="userTemporaryPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Obrigatória para novo usuário"><small class="field-hint">Ao editar, deixe em branco para manter a senha atual.</small></label>
+        <label>Código do vendedor<input id="userSellerId" type="text" maxlength="40" placeholder="Opcional"></label>
+        <label>Administrador?
+          <select id="userIsAdmin"><option value="false">Não — usuário padrão</option><option value="true">Sim — administrador</option></select>
+        </label>
+        <label>Situação
+          <select id="userActive"><option value="true">Ativo</option><option value="false">Bloqueado</option></select>
+        </label>
+      </div>
+      <p id="userFormNotice" class="form-error hidden"></p>
+      <div class="form-actions"><button id="clearUserForm" type="button" class="secondary">Limpar</button><button type="submit" class="primary">Salvar usuário</button></div>
+    </form>
+
+    <article class="card table-card user-list-card">
+      <div class="table-title"><div><h2>Usuários cadastrados</h2><p>O administrador master não pode ser bloqueado nem rebaixado.</p></div><span id="userCount">0 usuários</span></div>
+      <div class="table-wrap"><table class="users-table"><thead><tr><th>Usuário</th><th>Login/e-mail</th><th>Administrador</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="usersTableBody"><tr><td colspan="5" class="empty"><p>Carregando usuários...</p></td></tr></tbody></table></div>
+    </article>
+  </div>
+</section>

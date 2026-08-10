@@ -1,0 +1,58 @@
+<script>
+(function(){
+  let users=[];
+  let initialized=false;
+  const $=function(selector){return document.querySelector(selector);};
+
+  function cell(text,className){const td=document.createElement('td');if(className)td.className=className;td.textContent=text;return td;}
+  function actionButton(label,action,id){const button=document.createElement('button');button.type='button';button.className='table-action';button.dataset.action=action;button.dataset.id=id;button.textContent=label;return button;}
+
+  function render(){
+    const body=$('#usersTableBody');body.textContent='';$('#userCount').textContent=users.length+' '+(users.length===1?'usuário':'usuários');
+    if(!users.length){const row=document.createElement('tr');const empty=cell('Nenhum usuário cadastrado.','empty');empty.colSpan=5;row.appendChild(empty);body.appendChild(row);return;}
+    users.forEach(function(user){
+      const row=document.createElement('tr');
+      const name=document.createElement('td');const strong=document.createElement('strong');strong.textContent=user.name;name.appendChild(strong);if(user.isMaster){const small=document.createElement('small');small.textContent='Administrador master';name.appendChild(small);}row.appendChild(name);
+      row.appendChild(cell(user.login||user.email||''));
+      const admin=document.createElement('td');const adminBadge=document.createElement('span');adminBadge.className='access-badge '+(user.isAdmin?'yes':'no');adminBadge.textContent=user.isAdmin?'Sim':'Não';admin.appendChild(adminBadge);row.appendChild(admin);
+      const active=document.createElement('td');const activeBadge=document.createElement('span');activeBadge.className='status '+(user.active?'aprovado':'rejeitado');activeBadge.textContent=user.active?'Ativo':'Bloqueado';active.appendChild(activeBadge);row.appendChild(active);
+      const actions=document.createElement('td');actions.className='row-actions';actions.appendChild(actionButton('Editar','edit',user.id));actions.appendChild(actionButton('Redefinir senha','reset-password',user.id));row.appendChild(actions);body.appendChild(row);
+    });
+  }
+
+  function clearForm(){
+    $('#userForm').reset();$('#userId').value='';$('#userFormTitle').textContent='Novo usuário';$('#userTemporaryPassword').required=true;$('#userIsAdmin').disabled=false;$('#userActive').disabled=false;$('#userLogin').readOnly=false;$('#userFormNotice').classList.add('hidden');
+  }
+
+  function editUser(id){
+    const user=users.find(function(item){return String(item.id)===String(id);});if(!user)return;
+    $('#userId').value=user.id;$('#userFullName').value=user.name||'';$('#userLogin').value=user.login||user.email||'';$('#userSellerId').value=user.sellerId||'';$('#userIsAdmin').value=user.isAdmin?'true':'false';$('#userActive').value=user.active?'true':'false';$('#userTemporaryPassword').value='';$('#userTemporaryPassword').required=false;$('#userFormTitle').textContent='Editar usuário';
+    $('#userIsAdmin').disabled=!!user.isMaster;$('#userActive').disabled=!!user.isMaster;$('#userLogin').readOnly=!!user.isMaster;$('#userFormNotice').classList.add('hidden');$('#userFullName').focus();
+  }
+
+  async function load(){
+    if(!window.DMBApp||!DMBApp.state.token)return;
+    DMBApp.busy(true);try{users=await DMBApi.call('apiListarUsuarios',DMBApp.state.token);render();}catch(error){DMBApp.toast(error.message,'error');}finally{DMBApp.busy(false);}
+  }
+
+  async function save(event){
+    event.preventDefault();const id=$('#userId').value;const password=$('#userTemporaryPassword').value;
+    if(!id&&password.length<6){$('#userFormNotice').textContent='Informe uma senha inicial com pelo menos 6 caracteres.';$('#userFormNotice').classList.remove('hidden');return;}
+    const payload={id:id,name:$('#userFullName').value,login:$('#userLogin').value,temporaryPassword:password,sellerId:$('#userSellerId').value,isAdmin:$('#userIsAdmin').value==='true',active:$('#userActive').value==='true'};
+    DMBApp.busy(true);try{await DMBApi.call('apiSalvarUsuario',DMBApp.state.token,payload);DMBApp.toast(id?'Usuário atualizado.':'Usuário criado.','success');clearForm();await load();}catch(error){$('#userFormNotice').textContent=error.message;$('#userFormNotice').classList.remove('hidden');}finally{DMBApp.busy(false);}
+  }
+
+  async function resetPassword(id){
+    const user=users.find(function(item){return String(item.id)===String(id);});if(!user)return;
+    const password=window.prompt('Digite a nova senha temporária para '+user.name+' (mínimo de 6 caracteres):');if(password===null)return;if(password.length<6)return DMBApp.toast('A senha deve ter pelo menos 6 caracteres.','error');
+    DMBApp.busy(true);try{await DMBApi.call('apiRedefinirSenhaUsuario',DMBApp.state.token,id,password);DMBApp.toast('Senha redefinida. O usuário deverá alterá-la no próximo acesso.','success');await load();}catch(error){DMBApp.toast(error.message,'error');}finally{DMBApp.busy(false);}
+  }
+
+  function init(){
+    if(initialized)return;initialized=true;$('#userForm').addEventListener('submit',save);$('#clearUserForm').addEventListener('click',clearForm);$('#usersTableBody').addEventListener('click',function(event){const button=event.target.closest('[data-action]');if(!button)return;if(button.dataset.action==='edit')editUser(button.dataset.id);if(button.dataset.action==='reset-password')resetPassword(button.dataset.id);});clearForm();
+  }
+
+  window.DMBAdmin={init:init,load:function(){init();return load();}};
+})();
+
+</script>

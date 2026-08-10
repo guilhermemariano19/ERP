@@ -1,0 +1,40 @@
+<script>
+(function(){
+  function money(value){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(value||0));}
+  function escapeHtml(value){const div=document.createElement('div');div.textContent=String(value==null?'':value);return div.innerHTML;}
+  function initials(name){return String(name||'DMB').split(/\s+/).filter(Boolean).slice(0,2).map(function(part){return part[0];}).join('').toUpperCase();}
+  function deviceInfo(){return [navigator.userAgent,navigator.platform,screen.width+'x'+screen.height].join(' | ').slice(0,500);}
+  function parseMoney(value){return Number(String(value||'0').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,''));}
+  function today(){const date=new Date();return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');}
+  function monthBounds(){const date=new Date(),y=date.getFullYear(),m=date.getMonth()+1;return {start:y+'-'+String(m).padStart(2,'0')+'-01',end:y+'-'+String(m).padStart(2,'0')+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0')};}
+  function compressImage(file,maxDimension,quality){
+    maxDimension=maxDimension||1600;quality=quality||.72;
+    if(!file)return Promise.resolve(null);
+    if(file.size>10*1024*1024)return Promise.reject(new Error('A foto original deve ter no máximo 10 MB.'));
+    if(['image/jpeg','image/png','image/webp'].indexOf(file.type)<0)return Promise.reject(new Error('Use uma foto JPG, PNG ou WebP.'));
+    return new Promise(function(resolve,reject){
+      const reader=new FileReader();
+      reader.onerror=function(){reject(new Error('Não foi possível ler a foto.'));};
+      reader.onload=function(){
+        const image=new Image();
+        image.onerror=function(){reject(new Error('A imagem não pôde ser processada.'));};
+        image.onload=function(){
+          let width=image.width,height=image.height;
+          if(Math.max(width,height)>maxDimension){const scale=maxDimension/Math.max(width,height);width=Math.round(width*scale);height=Math.round(height*scale);}
+          const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+          const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);ctx.drawImage(image,0,0,width,height);
+          const dataUrl=canvas.toDataURL('image/jpeg',quality);const base64=dataUrl.split(',')[1];
+          if(Math.ceil(base64.length*.75)>5*1024*1024)return reject(new Error('A foto ainda ultrapassa 5 MB. Fotografe novamente com menor resolução.'));
+          resolve({name:String(file.name||'comprovante.jpg').replace(/[^a-zA-Z0-9._-]/g,'_'),mimeType:'image/jpeg',dataBase64:base64,originalBytes:file.size});
+        };image.src=String(reader.result);
+      };reader.readAsDataURL(file);
+    });
+  }
+  function downloadCsv(filename,rows){
+    const text='\ufeff'+rows.map(function(row){return row.map(function(cell){return '"'+String(cell==null?'':cell).replace(/"/g,'""')+'"';}).join(';');}).join('\r\n');
+    const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));link.download=filename;document.body.appendChild(link);link.click();setTimeout(function(){URL.revokeObjectURL(link.href);link.remove();},1000);
+  }
+  window.DMBUtils={money:money,escapeHtml:escapeHtml,initials:initials,deviceInfo:deviceInfo,parseMoney:parseMoney,today:today,monthBounds:monthBounds,compressImage:compressImage,downloadCsv:downloadCsv};
+})();
+
+</script>

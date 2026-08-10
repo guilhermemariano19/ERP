@@ -1,0 +1,60 @@
+<script>
+(function(){
+  const state={token:sessionStorage.getItem('dmb_token')||'',user:null,permissions:[],page:'despesas'};
+  const $=function(selector){return document.querySelector(selector);};
+  const $$=function(selector){return Array.prototype.slice.call(document.querySelectorAll(selector));};
+  function busy(show){$('#busy').classList.toggle('hidden',!show);}
+  function toast(message,type){const element=document.createElement('div');element.className='toast '+(type||'');element.textContent=message;$('#toastArea').appendChild(element);setTimeout(function(){element.remove();},5000);}
+  function showLogin(error){$('#boot').classList.add('hidden');$('#application').classList.add('hidden');$('#loginScreen').classList.remove('hidden');if(error){$('#loginError').textContent=error;$('#loginError').classList.remove('hidden');}}
+  function showApp(){
+    $('#boot').classList.add('hidden');$('#loginScreen').classList.add('hidden');$('#application').classList.remove('hidden');
+    $('#userName').textContent=state.user.name;$('#userRole').textContent=state.user.role;$('#userAvatar').textContent=DMBUtils.initials(state.user.name);
+    $('#expenseSeller').value=state.user.name;
+    const canViewAll=state.permissions.indexOf('DESPESAS.VER_TODAS')>=0;
+    const canManageUsers=state.permissions.indexOf('CADASTROS.GERENCIAR')>=0;
+    $$('[data-admin-only]').forEach(function(element){element.classList.toggle('hidden',!canViewAll);});
+    $$('[data-cadastros-only]').forEach(function(element){element.classList.toggle('hidden',!canManageUsers);});
+    navigate('despesas');
+    if(window.DMBExpenses)window.DMBExpenses.init();
+    $('#passwordChangeModal').classList.toggle('hidden',!state.user.mustChangePassword);
+    if(state.user.mustChangePassword)setTimeout(function(){$('#currentPassword').focus();},0);
+  }
+  async function restore(){
+    if(!state.token)return showLogin();
+    try{const result=await DMBApi.call('apiSessao',state.token);state.user=result.user;state.permissions=result.permissions||[];showApp();}
+    catch(error){sessionStorage.removeItem('dmb_token');state.token='';showLogin('Sua sessão expirou. Entre novamente.');}
+  }
+  async function login(event){
+    event.preventDefault();busy(true);$('#loginError').classList.add('hidden');
+    try{const result=await DMBApi.call('apiLogin',$('#loginEmail').value,$('#loginPassword').value,DMBUtils.deviceInfo());state.token=result.token;state.user=result.user;state.permissions=result.permissions||[];sessionStorage.setItem('dmb_token',state.token);$('#loginForm').reset();showApp();}
+    catch(error){showLogin(error.message);}finally{busy(false);}
+  }
+  async function logout(){try{await DMBApi.call('apiLogout',state.token);}catch(error){}sessionStorage.removeItem('dmb_token');state.token='';state.user=null;showLogin();}
+  async function changePassword(event){
+    event.preventDefault();
+    const current=$('#currentPassword').value;
+    const next=$('#newPassword').value;
+    const confirm=$('#confirmPassword').value;
+    $('#passwordChangeError').classList.add('hidden');
+    if(next!==confirm){$('#passwordChangeError').textContent='A confirmação não corresponde à nova senha.';$('#passwordChangeError').classList.remove('hidden');return;}
+    busy(true);
+    try{await DMBApi.call('apiAlterarSenha',state.token,current,next);state.user.mustChangePassword=false;$('#passwordChangeForm').reset();$('#passwordChangeModal').classList.add('hidden');toast('Senha alterada com segurança.','success');}
+    catch(error){$('#passwordChangeError').textContent=error.message;$('#passwordChangeError').classList.remove('hidden');}
+    finally{busy(false);}
+  }
+  function navigate(page){
+    if(page==='dashboard'&&state.permissions.indexOf('DESPESAS.VER_TODAS')<0)return toast('Acesso restrito à administração.','error');
+    if(page==='administracao'&&state.permissions.indexOf('CADASTROS.GERENCIAR')<0)return toast('Acesso restrito ao administrador.','error');
+    state.page=page;$$('.page-section').forEach(function(section){section.classList.toggle('active',section.id==='page-'+page);});$$('[data-page]').forEach(function(button){button.classList.toggle('active',button.dataset.page===page);});
+    const labels={despesas:'Despesas de viagem',dashboard:'Controle de gastos',adiantamentos:'Adiantamentos',agendamento:'Agendamentos',visitas:'Visitas realizadas',administracao:'Administração'};$('#topbarSubtitle').textContent=labels[page]||'DMB ERP';closeNav();if(page==='dashboard'&&window.DMBDashboard)window.DMBDashboard.load();if(page==='administracao'&&window.DMBAdmin)window.DMBAdmin.load();
+  }
+  function openNav(){$('#sidebar').classList.add('open');$('#navOverlay').classList.remove('hidden');}
+  function closeNav(){$('#sidebar').classList.remove('open');$('#navOverlay').classList.add('hidden');}
+  document.addEventListener('DOMContentLoaded',function(){
+    $('#loginForm').addEventListener('submit',login);$('#passwordChangeForm').addEventListener('submit',changePassword);$('#logoutButton').addEventListener('click',logout);$('#menuButton').addEventListener('click',openNav);$$('[data-close-nav]').forEach(function(el){el.addEventListener('click',closeNav);});$$('[data-page]').forEach(function(button){button.addEventListener('click',function(){navigate(button.dataset.page);});});
+    $('#togglePassword').addEventListener('click',function(){const input=$('#loginPassword');input.type=input.type==='password'?'text':'password';});restore();
+  });
+  window.DMBApp={state:state,busy:busy,toast:toast,navigate:navigate};
+})();
+
+</script>

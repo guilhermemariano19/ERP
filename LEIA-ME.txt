@@ -1,0 +1,1 @@
+Arquivos achatados para o editor do Google Apps Script. Consulte o README.md na raiz do pacote para instalar.

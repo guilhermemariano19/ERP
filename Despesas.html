@@ -1,0 +1,29 @@
+<section id="page-despesas" class="page-section active">
+  <header class="page-heading"><div><span class="eyebrow">NOVA DESPESA</span><h1>Registrar gasto diário</h1><p>Preencha os dados da viagem e anexe uma foto legível da nota fiscal.</p></div><div class="period-card"><small>PERÍODO ATUAL</small><strong id="currentPeriod">—</strong></div></header>
+  <form id="expenseForm" class="stack">
+    <article class="card form-card">
+      <div class="section-title"><b>1</b><div><h2>Dados da viagem</h2><p>Identificação do gasto e do atendimento.</p></div></div>
+      <div class="form-grid">
+        <label>Data da despesa<input id="expenseDate" type="date" required></label>
+        <label>Vendedor<input id="expenseSeller" readonly></label>
+        <label>Rota<input id="expenseRoute" placeholder="Ex.: BH → Betim" maxlength="160" required></label>
+        <label>Cliente<input id="expenseClient" list="clientOptions" placeholder="Selecione ou digite o cliente" maxlength="180" required><datalist id="clientOptions"></datalist></label>
+      </div>
+    </article>
+    <article class="card form-card">
+      <div class="section-title"><b>2</b><div><h2>Detalhes do gasto</h2><p>Classificação e valor para a prestação de contas.</p></div></div>
+      <div class="form-grid">
+        <label>Categoria<select id="expenseCategory" required><option value="">Selecione</option><option>Combustível</option><option>Alimentação</option><option>Pedágio</option><option>Estacionamento</option><option>Hospedagem</option><option>Manutenção do veículo</option><option>Outros</option></select></label>
+        <label>Valor da despesa<div class="money-input"><span>R$</span><input id="expenseAmount" type="text" inputmode="decimal" placeholder="0,00" required></div></label>
+        <label>Forma de pagamento<select id="expensePayment"><option>Cartão corporativo</option><option>Dinheiro</option><option>PIX</option><option>Cartão pessoal</option></select></label>
+        <label>Quilometragem (opcional)<input id="expenseMileage" type="number" min="0" step="1" placeholder="0 km"></label>
+        <label class="full">Observações<textarea id="expenseDescription" rows="3" maxlength="1000" placeholder="Informe detalhes relevantes para a conferência."></textarea></label>
+      </div>
+    </article>
+    <article class="card form-card">
+      <div class="section-title"><b>3</b><div><h2>Comprovante fiscal</h2><p>A foto será reduzida automaticamente antes do envio.</p></div></div>
+      <label id="receiptDrop" class="upload-zone"><input id="expenseReceipt" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required><span>⌑</span><strong id="receiptName">Adicionar foto da nota fiscal</strong><small id="receiptHint">JPG, PNG ou WebP • compressão automática • até 10 MB</small><i>Selecionar arquivo</i></label>
+    </article>
+    <div class="form-actions"><button id="clearExpense" type="reset" class="secondary">Limpar</button><button type="submit" class="primary">Salvar despesa <span>→</span></button></div>
+  </form>
+</section>
