@@ -13,12 +13,12 @@
   <?!= include('Mobile'); ?>
 </head>
 <body>
-  <div id="boot" class="boot"><div class="brand brand--blue" aria-label="DMB Bombas"><b>DMB</b><small>BOMBAS</small></div><span class="spinner"></span><p>Carregando sistema...</p></div>
+  <div id="boot" class="boot"><span class="dmb-logo dmb-logo--blue dmb-logo--boot" role="img" aria-label="DMB Bombas"></span><span class="spinner"></span><p>Carregando sistema...</p></div>
   <?!= include('Login'); ?>
 
   <div id="application" class="application hidden">
     <aside id="sidebar" class="sidebar">
-      <div class="sidebar-head"><div class="brand brand--white" aria-label="DMB Bombas"><b>DMB</b><small>BOMBAS</small></div><button class="only-mobile" data-close-nav aria-label="Fechar menu">×</button></div>
+      <div class="sidebar-head"><span class="dmb-logo dmb-logo--white dmb-logo--sidebar" role="img" aria-label="DMB Bombas"></span><button class="only-mobile" data-close-nav aria-label="Fechar menu">×</button></div>
       <nav>
         <p>FINANCEIRO</p>
         <button data-page="despesas" class="active"><span>＋</span>Lançar despesa</button>
@@ -37,8 +37,8 @@
     <section class="workspace">
       <header class="topbar">
         <button id="menuButton" class="only-mobile menu-button" aria-label="Abrir menu">☰</button>
-        <div class="brand brand--blue brand--compact" aria-label="DMB Bombas"><b>DMB</b><small>BOMBAS</small></div>
-        <div><strong>Portal DMB ERP</strong><small id="topbarSubtitle">Despesas de viagem</small></div>
+        <span class="dmb-logo dmb-logo--blue dmb-logo--compact" role="img" aria-label="DMB Bombas"></span>
+        <div class="topbar-title"><strong>Portal DMB ERP</strong><small id="topbarSubtitle">Despesas de viagem</small></div>
         <div class="connection"><i></i><span>Planilhas conectadas</span></div>
       </header>
       <main id="mainContent">

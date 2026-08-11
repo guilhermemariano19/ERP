@@ -80,33 +80,39 @@ function apiListarUsuarios(token) {
 function apiSalvarUsuario(token, payload) {
   const session = requireSession_(token);
   requirePermission_(session, 'CADASTROS.GERENCIAR');
-  payload = payload || {};
-  const login = normalizeLogin_(payload.login || payload.email);
-  const users = getSheetObjects_('USUARIOS');
-  const duplicate = users.find(function(user) { return normalizeLogin_(user.EMAIL) === login && String(user.ID) !== String(payload.id || ''); });
-  if (duplicate) throw new Error('Já existe um usuário com este login ou e-mail.');
-  const isMaster = String(payload.id || '') === DMB_MASTER_BOOTSTRAP.ID;
-  const isAdmin = isMaster || payload.isAdmin === true || String(payload.isAdmin).toLowerCase() === 'true';
-  const changes = { NOME: sanitizeText_(payload.name, 120), EMAIL: isMaster ? DMB_MASTER_BOOTSTRAP.LOGIN : login, PERFIL: isAdmin ? 'ADMIN' : 'VENDEDOR', VENDEDOR_ID: payload.sellerId || '', ATIVO: isMaster ? true : payload.active !== false, ATUALIZADO_EM: nowIso_() };
-  if (!changes.NOME || !changes.EMAIL) throw new Error('Nome e login/e-mail são obrigatórios.');
-  if (payload.id) {
-    if (payload.temporaryPassword) {
-      validatePassword_(payload.temporaryPassword);
-      const updatedSalt = createSalt_();
-      changes.SENHA_HASH = hashPassword_(payload.temporaryPassword, updatedSalt);
-      changes.SALT = updatedSalt;
-      changes.TROCAR_SENHA = !isMaster;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    payload = payload || {};
+    const login = normalizeLogin_(payload.login || payload.email);
+    const users = getSheetObjects_('USUARIOS');
+    const duplicate = users.find(function(user) { return normalizeLogin_(user.EMAIL) === login && String(user.ID) !== String(payload.id || ''); });
+    if (duplicate) throw new Error('Já existe um usuário com este login ou e-mail.');
+    const isMaster = String(payload.id || '') === DMB_MASTER_BOOTSTRAP.ID;
+    const isAdmin = isMaster || payload.isAdmin === true || String(payload.isAdmin).toLowerCase() === 'true';
+    const changes = { NOME: sanitizeText_(payload.name, 120), EMAIL: isMaster ? DMB_MASTER_BOOTSTRAP.LOGIN : login, PERFIL: isAdmin ? 'ADMIN' : 'VENDEDOR', VENDEDOR_ID: payload.sellerId || '', ATIVO: isMaster ? true : payload.active !== false, ATUALIZADO_EM: nowIso_() };
+    if (!changes.NOME || !changes.EMAIL) throw new Error('Nome e login/e-mail são obrigatórios.');
+    if (payload.id) {
+      if (payload.temporaryPassword) {
+        validatePassword_(payload.temporaryPassword);
+        const updatedSalt = createSalt_();
+        changes.SENHA_HASH = hashPassword_(payload.temporaryPassword, updatedSalt);
+        changes.SALT = updatedSalt;
+        changes.TROCAR_SENHA = !isMaster;
+      }
+      updateObjectById_('USUARIOS', payload.id, changes);
+      audit_(session, 'USUARIO_ATUALIZADO', 'USUARIOS', payload.id, '', '');
+      return { id: payload.id };
     }
-    updateObjectById_('USUARIOS', payload.id, changes);
-    audit_(session, 'USUARIO_ATUALIZADO', 'USUARIOS', payload.id, '', '');
-    return { id: payload.id };
+    validatePassword_(payload.temporaryPassword);
+    const salt = createSalt_();
+    const user = Object.assign({ ID: uuid_(), SENHA_HASH: hashPassword_(payload.temporaryPassword, salt), SALT: salt, TROCAR_SENHA: true, CRIADO_EM: nowIso_() }, changes);
+    appendObject_('USUARIOS', user);
+    audit_(session, 'USUARIO_CRIADO', 'USUARIOS', user.ID, '', '');
+    return { id: user.ID };
+  } finally {
+    lock.releaseLock();
   }
-  validatePassword_(payload.temporaryPassword);
-  const salt = createSalt_();
-  const user = Object.assign({ ID: uuid_(), SENHA_HASH: hashPassword_(payload.temporaryPassword, salt), SALT: salt, TROCAR_SENHA: true, CRIADO_EM: nowIso_() }, changes);
-  appendObject_('USUARIOS', user);
-  audit_(session, 'USUARIO_CRIADO', 'USUARIOS', user.ID, '', '');
-  return { id: user.ID };
 }
 
 function apiRedefinirSenhaUsuario(token, userId, temporaryPassword) {

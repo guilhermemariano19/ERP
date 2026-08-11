@@ -2,6 +2,7 @@
 (function(){
   let users=[];
   let initialized=false;
+  let userDraft=null;
   const $=function(selector){return document.querySelector(selector);};
 
   function cell(text,className){const td=document.createElement('td');if(className)td.className=className;td.textContent=text;return td;}
@@ -20,14 +21,40 @@
     });
   }
 
+  function setDraftState(mode,message){
+    const state=$('#userDraftState');state.classList.remove('idle','dirty','ready');state.classList.add(mode);state.querySelector('small').textContent=message;
+  }
+
+  function collectDraft(){
+    return {
+      id:$('#userId').value,
+      name:$('#userFullName').value.trim(),
+      login:$('#userLogin').value.trim(),
+      sellerId:$('#userSellerId').value.trim(),
+      isAdmin:$('#userIsAdmin').value==='true',
+      active:$('#userActive').value==='true'
+    };
+  }
+
+  function captureDraft(){
+    userDraft=collectDraft();
+    setDraftState('dirty','Alterações mantidas somente nesta tela; o banco ainda não foi alterado.');
+    $('#userFormNotice').classList.add('hidden');
+  }
+
+  function closeReview(){
+    $('#userReviewModal').classList.add('hidden');
+    $('#userReviewError').classList.add('hidden');
+  }
+
   function clearForm(){
-    $('#userForm').reset();$('#userId').value='';$('#userFormTitle').textContent='Novo usuário';$('#userTemporaryPassword').required=true;$('#userIsAdmin').disabled=false;$('#userActive').disabled=false;$('#userLogin').readOnly=false;$('#userFormNotice').classList.add('hidden');
+    $('#userForm').reset();$('#userId').value='';$('#userFormTitle').textContent='Novo usuário';$('#userTemporaryPassword').required=true;$('#userIsAdmin').disabled=false;$('#userActive').disabled=false;$('#userLogin').readOnly=false;$('#userFormNotice').classList.add('hidden');userDraft=null;closeReview();setDraftState('idle','Nenhum dado foi enviado ao banco.');
   }
 
   function editUser(id){
     const user=users.find(function(item){return String(item.id)===String(id);});if(!user)return;
     $('#userId').value=user.id;$('#userFullName').value=user.name||'';$('#userLogin').value=user.login||user.email||'';$('#userSellerId').value=user.sellerId||'';$('#userIsAdmin').value=user.isAdmin?'true':'false';$('#userActive').value=user.active?'true':'false';$('#userTemporaryPassword').value='';$('#userTemporaryPassword').required=false;$('#userFormTitle').textContent='Editar usuário';
-    $('#userIsAdmin').disabled=!!user.isMaster;$('#userActive').disabled=!!user.isMaster;$('#userLogin').readOnly=!!user.isMaster;$('#userFormNotice').classList.add('hidden');$('#userFullName').focus();
+    $('#userIsAdmin').disabled=!!user.isMaster;$('#userActive').disabled=!!user.isMaster;$('#userLogin').readOnly=!!user.isMaster;$('#userFormNotice').classList.add('hidden');captureDraft();$('#userFullName').focus();
   }
 
   async function load(){
@@ -35,11 +62,29 @@
     DMBApp.busy(true);try{users=await DMBApi.call('apiListarUsuarios',DMBApp.state.token);render();}catch(error){DMBApp.toast(error.message,'error');}finally{DMBApp.busy(false);}
   }
 
-  async function save(event){
-    event.preventDefault();const id=$('#userId').value;const password=$('#userTemporaryPassword').value;
-    if(!id&&password.length<6){$('#userFormNotice').textContent='Informe uma senha inicial com pelo menos 6 caracteres.';$('#userFormNotice').classList.remove('hidden');return;}
-    const payload={id:id,name:$('#userFullName').value,login:$('#userLogin').value,temporaryPassword:password,sellerId:$('#userSellerId').value,isAdmin:$('#userIsAdmin').value==='true',active:$('#userActive').value==='true'};
-    DMBApp.busy(true);try{await DMBApi.call('apiSalvarUsuario',DMBApp.state.token,payload);DMBApp.toast(id?'Usuário atualizado.':'Usuário criado.','success');clearForm();await load();}catch(error){$('#userFormNotice').textContent=error.message;$('#userFormNotice').classList.remove('hidden');}finally{DMBApp.busy(false);}
+  function validateDraft(draft,password){
+    if(!draft.name)return 'Informe o nome completo.';
+    if(!draft.login)return 'Informe o login ou e-mail.';
+    if(!draft.id&&password.length<6)return 'Informe uma senha inicial com pelo menos 6 caracteres.';
+    if(password&&password.length<6)return 'A nova senha deve ter pelo menos 6 caracteres.';
+    return '';
+  }
+
+  function reviewDraft(event){
+    event.preventDefault();
+    const password=$('#userTemporaryPassword').value;userDraft=collectDraft();const error=validateDraft(userDraft,password);
+    if(error){$('#userFormNotice').textContent=error;$('#userFormNotice').classList.remove('hidden');return;}
+    $('#userFormNotice').classList.add('hidden');$('#userReviewTitle').textContent=userDraft.id?'Confirmar alteração do usuário':'Confirmar novo usuário';$('#reviewUserName').textContent=userDraft.name;$('#reviewUserLogin').textContent=userDraft.login;$('#reviewUserAdmin').textContent=userDraft.isAdmin?'Sim':'Não';$('#reviewUserActive').textContent=userDraft.active?'Ativo':'Bloqueado';$('#reviewUserSeller').textContent=userDraft.sellerId||'Não vinculado';$('#reviewUserPassword').textContent=password?'Definida — conteúdo protegido':'Manter senha atual';
+    setDraftState('ready','Rascunho revisado; aguardando sua confirmação para gravar.');$('#userReviewModal').classList.remove('hidden');$('#confirmUserSave').focus();
+  }
+
+  async function confirmSave(){
+    if(!userDraft)return;
+    const password=$('#userTemporaryPassword').value;const error=validateDraft(userDraft,password);if(error){$('#userReviewError').textContent=error;$('#userReviewError').classList.remove('hidden');return;}
+    const payload=Object.assign({},userDraft,{temporaryPassword:password});const button=$('#confirmUserSave');button.disabled=true;DMBApp.busy(true);
+    try{await DMBApi.call('apiSalvarUsuario',DMBApp.state.token,payload);DMBApp.toast(userDraft.id?'Usuário atualizado com sucesso.':'Usuário cadastrado com sucesso.','success');clearForm();await load();}
+    catch(saveError){$('#userReviewError').textContent=saveError.message;$('#userReviewError').classList.remove('hidden');}
+    finally{button.disabled=false;DMBApp.busy(false);}
   }
 
   async function resetPassword(id){
@@ -49,7 +94,7 @@
   }
 
   function init(){
-    if(initialized)return;initialized=true;$('#userForm').addEventListener('submit',save);$('#clearUserForm').addEventListener('click',clearForm);$('#usersTableBody').addEventListener('click',function(event){const button=event.target.closest('[data-action]');if(!button)return;if(button.dataset.action==='edit')editUser(button.dataset.id);if(button.dataset.action==='reset-password')resetPassword(button.dataset.id);});clearForm();
+    if(initialized)return;initialized=true;$('#userForm').addEventListener('submit',reviewDraft);$('#userForm').addEventListener('input',captureDraft);$('#userForm').addEventListener('change',captureDraft);$('#clearUserForm').addEventListener('click',clearForm);$('#cancelUserReview').addEventListener('click',closeReview);$('#confirmUserSave').addEventListener('click',confirmSave);$('#usersTableBody').addEventListener('click',function(event){const button=event.target.closest('[data-action]');if(!button)return;if(button.dataset.action==='edit')editUser(button.dataset.id);if(button.dataset.action==='reset-password')resetPassword(button.dataset.id);});clearForm();
   }
 
   window.DMBAdmin={init:init,load:function(){init();return load();}};
